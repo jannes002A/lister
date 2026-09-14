@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}Shopping list{% endblock %}</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">grocer</span>
+  <nav>
+    <a href="{{ url_for('create_recipe') }}" {% if request.endpoint == 'create_recipe' %}class="here"{% endif %}>New recipe</a>
+    <a href="{{ url_for('plan') }}" {% if request.endpoint == 'plan' %}class="here"{% endif %}>Pick recipes</a>
+    <a href="{{ url_for('build_list') }}" {% if request.endpoint == 'build_list' %}class="here"{% endif %}>Build list</a>
+    <a href="{{ url_for('shopping_list') }}" {% if request.endpoint == 'shopping_list' %}class="here"{% endif %}>Shopping list</a>
+    <a href="{{ url_for('selected_recipes') }}" {% if request.endpoint == 'selected_recipes' %}class="here"{% endif %}>Selected recipes</a>
+  </nav>
+</header>
+<main>
+{% block content %}{% endblock %}
+</main>
+</body>
+</html>

@@ -1,0 +1,144 @@
+/* grocer — a small kitchen tool.
+   Palette: paper #F6F8F5, ink #22301F, leaf #2F6B3F, rule #D6E0D3, done #93A08F */
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: #F6F8F5;
+  color: #22301F;
+  font: 16px/1.55 "Avenir Next", "Segoe UI", system-ui, sans-serif;
+}
+
+.topbar {
+  display: flex;
+  align-items: baseline;
+  gap: 2rem;
+  padding: 1rem 1.5rem;
+  border-bottom: 2px solid #2F6B3F;
+  background: #fff;
+  flex-wrap: wrap;
+}
+.brand {
+  font-weight: 700;
+  font-size: 1.3rem;
+  letter-spacing: -0.02em;
+  color: #2F6B3F;
+}
+.topbar nav { display: flex; gap: 1.2rem; flex-wrap: wrap; }
+.topbar a { color: #22301F; text-decoration: none; padding-bottom: 2px; }
+.topbar a.here { border-bottom: 2px solid #2F6B3F; font-weight: 600; }
+.topbar a:hover { color: #2F6B3F; }
+
+main { max-width: 620px; margin: 0 auto; padding: 1.5rem 1.25rem 4rem; }
+
+h1 { font-size: 1.7rem; letter-spacing: -0.02em; margin: 0.5rem 0 1rem; }
+h2 { font-size: 1.1rem; margin: 2rem 0 0.6rem; color: #2F6B3F; }
+
+.notice {
+  background: #E7F0E4;
+  border-left: 4px solid #2F6B3F;
+  padding: 0.6rem 0.9rem;
+}
+
+/* forms */
+.stack { display: flex; flex-direction: column; gap: 0.6rem; }
+label { font-weight: 600; margin-top: 0.4rem; }
+input, select {
+  font: inherit;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid #B9C6B4;
+  border-radius: 4px;
+  background: #fff;
+  color: inherit;
+}
+input:focus-visible, select:focus-visible, button:focus-visible {
+  outline: 2px solid #2F6B3F;
+  outline-offset: 1px;
+}
+
+.ing-row {
+  display: grid;
+  grid-template-columns: 1fr 90px 100px auto;
+  gap: 0.5rem;
+}
+@media (max-width: 480px) {
+  .ing-row { grid-template-columns: 1fr 80px; }
+}
+
+.inline-form { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.inline-form select, .inline-form input[type=text], .inline-form input:not([type]) { flex: 1; min-width: 200px; }
+
+button {
+  font: inherit;
+  cursor: pointer;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  padding: 0.5rem 1rem;
+}
+button.primary { background: #2F6B3F; color: #fff; }
+button.primary:hover { background: #275834; }
+button.ghost { background: transparent; border-color: #B9C6B4; color: #22301F; }
+button.ghost:hover { border-color: #2F6B3F; color: #2F6B3F; }
+button.danger { background: #8C2F2F; color: #fff; }
+button.danger:hover { background: #742626; }
+button.big { padding: 0.75rem 1.4rem; margin-top: 1.5rem; font-size: 1.05rem; }
+
+.chip {
+  background: #fff;
+  border: 1px solid #B9C6B4;
+  border-radius: 999px;
+  padding: 0.3rem 0.9rem;
+}
+.chip:hover { border-color: #2F6B3F; color: #2F6B3F; }
+.chips { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.chips form { display: inline; }
+
+/* lists */
+ul.plain { padding-left: 1.2rem; }
+ul.rows { list-style: none; padding: 0; margin: 0; }
+ul.rows li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.55rem 0;
+  border-bottom: 1px solid #D6E0D3;
+}
+
+.muted { color: #6B7767; }
+.small { font-size: 0.85rem; }
+
+/* the shopping pad */
+ul.pad {
+  list-style: none;
+  padding: 0.25rem 0 0;
+  margin: 0;
+  background: #fff;
+  border: 1px solid #D6E0D3;
+  border-radius: 6px;
+  box-shadow: 0 1px 0 #D6E0D3;
+}
+ul.pad li { border-bottom: 1px solid #D6E0D3; }
+ul.pad li:last-child { border-bottom: none; }
+ul.pad label {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.7rem 1rem;
+  font-weight: 400;
+  cursor: pointer;
+  margin: 0;
+}
+ul.pad input[type=checkbox] {
+  width: 1.15rem;
+  height: 1.15rem;
+  accent-color: #2F6B3F;
+  flex-shrink: 0;
+}
+ul.pad li.done span {
+  text-decoration: line-through;
+  color: #93A08F;
+}
+
+.clear-zone { margin-top: 3rem; border-top: 1px solid #D6E0D3; }

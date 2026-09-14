@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Shopping list{% endblock %}
+{% block content %}
+<h1>Shopping list</h1>
+
+{% if items %}
+<ul id="shopping" class="pad">
+  {% for item in items %}
+  <li>
+    <label>
+      <input type="checkbox" onchange="toggle(this)">
+      <span>{{ item.label }}</span>
+    </label>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="muted">Nothing on the list yet. <a href="{{ url_for('plan') }}">Pick recipes</a> or <a href="{{ url_for('build_list') }}">add items</a>.</p>
+{% endif %}
+
+<script>
+function toggle(box) {
+  const li = box.closest('li');
+  const list = document.getElementById('shopping');
+  li.classList.toggle('done', box.checked);
+  if (box.checked) {
+    list.appendChild(li);            // sink to the bottom
+  } else {
+    // move back above the first done item
+    const firstDone = list.querySelector('li.done');
+    list.insertBefore(li, firstDone);
+  }
+}
+</script>
+{% endblock %}

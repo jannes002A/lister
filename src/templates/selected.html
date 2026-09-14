@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Selected recipes{% endblock %}
+{% block content %}
+<h1>Selected recipes</h1>
+
+{% if selected %}
+<ul class="rows">
+  {% for s in selected %}
+  <li>
+    <span><strong>{{ s.name }}</strong>{% if s.source %} <span class="muted">— {{ s.source }}</span>{% endif %}</span>
+    <span class="muted small">{{ s.selected_at }}</span>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="muted">No recipes selected in this run.</p>
+{% endif %}
+
+{% if extras %}
+<h2>Extra items on the list</h2>
+<ul class="plain">
+  {% for e in extras %}<li>{{ e.name }}</li>{% endfor %}
+</ul>
+{% endif %}
+
+{% if selected or extras %}
+<form method="post" class="clear-zone">
+  <input type="hidden" name="action" value="clear">
+  <button type="submit" class="danger big">Clear all selected recipes and ingredients</button>
+</form>
+{% endif %}
+{% endblock %}

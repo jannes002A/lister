@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Pick recipes{% endblock %}
+{% block content %}
+<h1>What do you want to cook?</h1>
+
+{% if recipes %}
+<form method="post" class="inline-form">
+  <input type="hidden" name="action" value="add">
+  <select name="recipe_id" aria-label="Recipe">
+    {% for r in recipes %}
+    <option value="{{ r.id }}">{{ r.name }}{% if r.source %} ({{ r.source }}){% endif %}</option>
+    {% endfor %}
+  </select>
+  <button type="submit" class="primary">Add to selection</button>
+</form>
+{% else %}
+<p class="muted">No recipes yet. <a href="{{ url_for('create_recipe') }}">Create one first.</a></p>
+{% endif %}
+
+{% if selected %}
+<h2>Selected</h2>
+<ul class="rows">
+  {% for s in selected %}
+  <li>
+    <span><strong>{{ s.name }}</strong>{% if s.source %} <span class="muted">— {{ s.source }}</span>{% endif %}</span>
+    <form method="post">
+      <input type="hidden" name="action" value="remove">
+      <input type="hidden" name="selection_id" value="{{ s.selection_id }}">
+      <button type="submit" class="ghost">Remove</button>
+    </form>
+  </li>
+  {% endfor %}
+</ul>
+
+<form method="post">
+  <input type="hidden" name="action" value="create">
+  <button type="submit" class="primary big">Create shopping list</button>
+</form>
+{% endif %}
+{% endblock %}

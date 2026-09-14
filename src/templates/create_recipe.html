@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}New recipe{% endblock %}
+{% block content %}
+<h1>New recipe</h1>
+
+{% if message %}<p class="notice">{{ message }}</p>{% endif %}
+
+<form method="post" class="stack">
+  <label for="name">Recipe name</label>
+  <input id="name" name="name" required placeholder="e.g. Lentil soup">
+
+  <label for="source">Source</label>
+  <input id="source" name="source" placeholder="Book or website, e.g. Ottolenghi Simple p. 142">
+
+  <h2>Ingredients</h2>
+  <div id="ingredient-rows" class="stack">
+    <div class="ing-row">
+      <input name="ing_name" placeholder="Ingredient" aria-label="Ingredient">
+      <input name="ing_amount" placeholder="Amount" aria-label="Amount">
+      <select name="ing_unit" aria-label="Unit">
+        <option value="pieces">pieces</option>
+        <option value="kg">kg</option>
+      </select>
+      <button type="button" class="ghost" onclick="removeRow(this)">✕</button>
+    </div>
+  </div>
+  <button type="button" class="ghost" onclick="addRow()">+ Add ingredient</button>
+
+  <button type="submit" class="primary">Save recipe</button>
+</form>
+
+{% if recipes %}
+<h2>Saved recipes</h2>
+<ul class="plain">
+  {% for r in recipes %}
+  <li><strong>{{ r.name }}</strong>{% if r.source %} <span class="muted">— {{ r.source }}</span>{% endif %}</li>
+  {% endfor %}
+</ul>
+{% endif %}
+
+<script>
+function addRow() {
+  const rows = document.getElementById('ingredient-rows');
+  const row = rows.querySelector('.ing-row').cloneNode(true);
+  row.querySelectorAll('input').forEach(i => i.value = '');
+  row.querySelector('select').value = 'pieces';
+  rows.appendChild(row);
+  row.querySelector('input').focus();
+}
+function removeRow(btn) {
+  const rows = document.getElementById('ingredient-rows');
+  if (rows.querySelectorAll('.ing-row').length > 1) btn.closest('.ing-row').remove();
+  else btn.closest('.ing-row').querySelectorAll('input').forEach(i => i.value = '');
+}
+</script>
+{% endblock %}

@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Build list{% endblock %}
+{% block content %}
+<h1>Build your shopping list</h1>
+
+<h2>From your recipes</h2>
+{% if ingredients %}
+<ul class="rows">
+  {% for i in ingredients %}
+  <li>
+    <span>{{ i.amount }} {{ i.unit }} <strong>{{ i.name }}</strong></span>
+    <span class="muted">{{ i.recipe_name }}</span>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="muted">No recipes selected. <a href="{{ url_for('plan') }}">Pick some recipes first.</a></p>
+{% endif %}
+
+<h2>Anything else?</h2>
+<form method="post" class="inline-form">
+  <input type="hidden" name="action" value="add_extra">
+  <input name="extra_name" placeholder="e.g. dish soap" aria-label="Extra ingredient">
+  <button type="submit" class="primary">Add</button>
+</form>
+
+{% if saved %}
+<p class="muted small">Things you've added before — click to add again:</p>
+<div class="chips">
+  {% for s in saved %}
+  <form method="post">
+    <input type="hidden" name="action" value="quick_add">
+    <input type="hidden" name="extra_name" value="{{ s.name }}">
+    <button type="submit" class="chip">{{ s.name }}</button>
+  </form>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if extras %}
+<h2>Added to this list</h2>
+<ul class="rows">
+  {% for e in extras %}
+  <li>
+    <span>{{ e.name }}</span>
+    <form method="post">
+      <input type="hidden" name="action" value="remove_extra">
+      <input type="hidden" name="extra_id" value="{{ e.id }}">
+      <button type="submit" class="ghost">Remove</button>
+    </form>
+  </li>
+  {% endfor %}
+</ul>
+{% endif %}
+
+<form method="post">
+  <input type="hidden" name="action" value="create">
+  <button type="submit" class="primary big">Create shopping list</button>
+</form>
+{% endblock %}
