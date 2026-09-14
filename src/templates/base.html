@@ -8,7 +8,7 @@
 </head>
 <body>
 <header class="topbar">
-  <span class="brand">grocer</span>
+  <span class="brand">lister</span>
   <nav>
     <a href="{{ url_for('create_recipe') }}" {% if request.endpoint == 'create_recipe' %}class="here"{% endif %}>New recipe</a>
     <a href="{{ url_for('plan') }}" {% if request.endpoint == 'plan' %}class="here"{% endif %}>Pick recipes</a>

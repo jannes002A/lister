@@ -1,4 +1,4 @@
-"""Entry point: starts the grocer Flask app."""
+"""Entry point: starts the lister Flask app."""
 
 from src.app import main
 
