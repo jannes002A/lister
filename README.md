@@ -1,4 +1,4 @@
-# grocer — a recipe & shopping list app
+# lister — a recipe & shopping list app
 
 A small Flask app with a SQLite database for planning what to cook and generating a shopping list.
 
