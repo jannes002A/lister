@@ -1,10 +1,14 @@
+import os
 import re
 import sqlite3
 from pathlib import Path
 
 from flask import Flask, g, redirect, render_template, request, url_for
 
-DB_PATH = Path(__file__).parent / "shopping.db"
+# Defaults to a file next to the code, which is what the dev server wants. In a
+# container the code directory is read-only, so LISTER_DB_PATH points this at a
+# writable volume instead.
+DB_PATH = Path(os.environ.get("LISTER_DB_PATH") or Path(__file__).parent / "shopping.db")
 
 app = Flask(__name__)
 

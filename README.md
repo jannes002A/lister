@@ -17,6 +17,62 @@ Then open http://127.0.0.1:5000 in your browser. The database file `shopping.db`
 uv run pytest    # 145 tests
 ```
 
+## Deploy it with Docker
+
+```bash
+docker compose up -d --build
+```
+
+Then open http://127.0.0.1:8000. State lives in the `lister-data` volume and
+survives rebuilds; `docker compose down` stops the app without touching it
+(`down -v` deletes the data).
+
+### Read this before you expose it
+
+**The app has no authentication and no CSRF tokens.** Any page that can reach
+your browser can make it POST to `/build` or `/selected` and, for example, clear
+your list. That is why compose publishes the port as `127.0.0.1:8000:8000` —
+reachable from this host only. Dropping the `127.0.0.1:` prefix puts the app on
+your whole network, and because Docker writes its own iptables rules, a host
+firewall will *not* hold it back.
+
+To reach it from elsewhere, terminate TLS and authenticate in a reverse proxy in
+front of it, and set `LISTER_FORWARDED_ALLOW_IPS` to that proxy's address so
+gunicorn trusts its forwarding headers — never `*`, which lets any client forge
+`X-Forwarded-For`.
+
+### How the container is hardened
+
+| Measure | Why |
+| --- | --- |
+| gunicorn, never `app.run(debug=True)` | the Werkzeug debugger is a remote code execution console for anyone who can reach the port |
+| non-root `uid 10001`, `cap_drop: ALL` | the process holds an empty capability set — verified via `/proc/1/status` |
+| `no-new-privileges` | a setuid binary cannot be used to climb back up |
+| `read_only: true` rootfs | code, `/etc` and `/usr` cannot be rewritten at runtime |
+| app files owned by `root`, run as `lister` | the app cannot modify its own code even if the rootfs is made writable |
+| `/tmp` as `noexec,nosuid,nodev` tmpfs | scratch space that cannot be executed from |
+| no `pip`, `apt`, `dpkg` or compiler in the image | code execution gives no ready-made way to fetch a second stage |
+| multi-stage build | uv and the build toolchain never reach the final image |
+| `pids_limit`, `mem_limit`, `cpus` | bounds a runaway request or a fork bomb |
+| deny-by-default `.dockerignore` | a new `.env` or database dump cannot drift into the image |
+| `uv sync --locked` | the build fails on a stale lockfile instead of quietly resolving something newer |
+
+### Configuration
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `LISTER_DB_PATH` | `src/shopping.db` (dev), `/data/shopping.db` (container) | SQLite file location |
+| `PORT` | `8000` | port gunicorn binds |
+| `LISTER_THREADS` | `4` | threads in the single worker |
+| `LISTER_FORWARDED_ALLOW_IPS` | *(empty — trust no proxy)* | proxies whose forwarding headers are trusted |
+| `LISTER_LOG_LEVEL` | `info` | gunicorn log level |
+
+The container runs **one** worker with several threads on purpose: several
+processes writing one SQLite file in rollback-journal mode contend for a
+whole-file lock and start failing with "database is locked". Threads inside a
+single process queue up instead. Scaling past that means a real database, not
+more workers.
+
 ## Pages
 
 1. **New recipe** (`/`) — create recipes with a name, a free-text source (book or website), and any number of ingredients. Each ingredient has a free-text amount field and a unit dropdown (pieces / kg). Use "+ Add ingredient" for more rows, "✕" to drop one. Saved recipes are listed underneath.
@@ -58,6 +114,10 @@ quick-add button only adds it to the current list.
 ```
 main.py                      Entry point (starts the dev server)
 pyproject.toml               Project metadata, dependencies, packaging, pytest config
+Dockerfile                   Multi-stage build; hardened runtime image
+compose.yaml                 Deployment: rootfs read-only, no caps, loopback-only port
+gunicorn.conf.py             Production WSGI server settings
+.dockerignore                Deny-by-default allowlist of what the build may see
 src/app.py                   Flask routes, SQLite schema, amount parsing & merging
 src/templates/               Jinja2 templates (one per page, plus base.html)
 src/static/style.css         Styling

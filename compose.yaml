@@ -1,0 +1,76 @@
+services:
+  lister:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: lister:latest
+    restart: unless-stopped
+
+    # The app has no login screen and no CSRF tokens, so it must not be exposed
+    # directly. Binding to the loopback address means only this host can reach
+    # it; put a reverse proxy in front for TLS and authentication if you need
+    # access from elsewhere. Dropping the "127.0.0.1:" prefix publishes it to
+    # your whole network -- and Docker's port publishing writes its own iptables
+    # rules, so a host firewall will not save you from that.
+    ports:
+      - "127.0.0.1:8000:8000"
+
+    # --- container hardening ------------------------------------------------
+    # Re-stated here as well as in the image: compose is what actually runs, and
+    # a `docker run` that forgets these should be obvious by comparison.
+    user: "10001:10001"
+    read_only: true
+    security_opt:
+      - no-new-privileges:true   # setuid binaries cannot raise privileges
+    cap_drop:
+      - ALL                      # binding :8000 as uid 10001 needs none
+
+    # Writable scratch space, mounted so nothing there can be executed.
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=16m
+
+    # The only durable writable path. A named volume rather than a bind mount:
+    # it inherits /data's ownership from the image, so there is no uid mismatch
+    # to paper over with a chown at startup.
+    volumes:
+      - lister-data:/data
+
+    environment:
+      LISTER_DB_PATH: /data/shopping.db
+
+    # Bound the blast radius of a runaway request or a fork bomb.
+    pids_limit: 128
+    mem_limit: 256m
+    cpus: 1.0
+
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/', timeout=4).status == 200 else 1)"
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  lister-data:
+    # /data is the one writable path left, so it is also the one place a payload
+    # could be dropped. Docker cannot mount a *named* volume noexec, so if you
+    # want that last notch, swap the driver config below for a host directory:
+    #
+    #   driver: local
+    #   driver_opts:
+    #     type: none
+    #     o: bind,noexec,nosuid,nodev
+    #     device: /srv/lister-data        # must exist, chown 10001:10001
+    #
+    # Writing there still requires code execution first, which the read-only
+    # rootfs and the stripped-out package managers already make hard.

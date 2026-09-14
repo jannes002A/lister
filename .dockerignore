@@ -1,0 +1,18 @@
+# Deny everything, then allow back exactly what the build needs. This way a new
+# file in the repo (a .env, a dump, a key) cannot silently end up in the image.
+*
+
+!pyproject.toml
+!uv.lock
+!README.md
+!src/
+!gunicorn.conf.py
+
+# ...and re-exclude anything unwanted that the src/ rule just pulled back in.
+src/**/__pycache__/
+src/**/*.py[co]
+src/shopping.db
+src/*.db
+src/*.db-journal
+src/*.db-wal
+src/*.db-shm

@@ -13,6 +13,11 @@ uv run pytest test/test_db.py::test_close_db_actually_closes_the_connection   # 
 uv run pytest -k "combine"   # by name
 ```
 
+```bash
+docker compose up -d --build   # deploy on http://127.0.0.1:8000
+docker compose logs -f         # follow gunicorn's output
+```
+
 There is no linter or build step configured. `requirements.txt` is a leftover —
 `pyproject.toml` is the source of truth for dependencies.
 
@@ -33,6 +38,25 @@ Two consequences worth knowing before editing:
 The layout was previously `src/shopping/`; it was flattened by choice. The tradeoff is
 that a built wheel's top-level package is literally named `src`, which would collide if
 this were ever published.
+
+## Deployment
+
+`Dockerfile` + `compose.yaml` run the app under gunicorn (`gunicorn.conf.py`), never
+Flask's dev server — `app.run(debug=True)` in `main()` is for local work only, since the
+Werkzeug debugger is a remote code execution console.
+
+Two constraints the container puts on the code:
+
+- **The code directory is read-only at runtime.** Nothing may write next to the package.
+  `DB_PATH` therefore honours `LISTER_DB_PATH`, which compose points at `/data` on a
+  volume. Keep any new writable path configurable the same way.
+- **One gunicorn worker, several threads.** Multiple *processes* writing the one SQLite
+  file contend for a whole-file lock and fail with "database is locked". Don't raise
+  `workers` in `gunicorn.conf.py`.
+
+`.dockerignore` is a deny-by-default allowlist: a new file the build genuinely needs has
+to be added there explicitly, which is what keeps `src/shopping.db` and stray secrets out
+of the image.
 
 ## Architecture
 

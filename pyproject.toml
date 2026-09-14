@@ -8,6 +8,13 @@ dependencies = [
     "flask>=3.1,<4",
 ]
 
+[project.optional-dependencies]
+# Production WSGI server, used by the container image. Not needed for local dev,
+# where main.py runs Flask's own server.
+prod = [
+    "gunicorn>=23.0,<24",
+]
+
 [project.scripts]
 shopping = "src.app:main"
 
