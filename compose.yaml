@@ -6,6 +6,21 @@ services:
     image: lister:latest
     restart: unless-stopped
 
+    # Secrets and per-deployment settings come from .env, which is gitignored
+    # and excluded from the image by .dockerignore -- compose reads it on the
+    # host and hands the values to the container, so nothing lands in a layer.
+    # Start from .env.example; `required: true` makes a missing file a loud
+    # error instead of a container that silently starts without its key.
+    env_file:
+      - path: .env
+        required: true
+
+    # Fixed by the deployment rather than by .env: the database path is tied to
+    # the volume mount below, and the listen port to the published port above.
+    environment:
+      LISTER_DB_PATH: /data/shopping.db
+      PORT: "9000"
+
     # The app has no login screen and no CSRF tokens, so it must not be exposed
     # directly. Binding to the loopback address means only this host can reach
     # it; put a reverse proxy in front for TLS and authentication if you need
@@ -13,7 +28,7 @@ services:
     # your whole network -- and Docker's port publishing writes its own iptables
     # rules, so a host firewall will not save you from that.
     ports:
-      - "127.0.0.1:8000:8000"
+      - "127.0.0.1:${LISTER_PORT:-9000}:9000"
 
     # --- container hardening ------------------------------------------------
     # Re-stated here as well as in the image: compose is what actually runs, and
@@ -23,7 +38,7 @@ services:
     security_opt:
       - no-new-privileges:true   # setuid binaries cannot raise privileges
     cap_drop:
-      - ALL                      # binding :8000 as uid 10001 needs none
+      - ALL                      # binding :9000 as uid 10001 needs none
 
     # Writable scratch space, mounted so nothing there can be executed.
     tmpfs:
@@ -35,9 +50,6 @@ services:
     volumes:
       - lister-data:/data
 
-    environment:
-      LISTER_DB_PATH: /data/shopping.db
-
     # Bound the blast radius of a runaway request or a fork bomb.
     pids_limit: 128
     mem_limit: 256m
@@ -48,7 +60,7 @@ services:
         - CMD
         - python
         - -c
-        - "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/', timeout=4).status == 200 else 1)"
+        - "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:9000/', timeout=4).status == 200 else 1)"
       interval: 30s
       timeout: 5s
       start_period: 10s

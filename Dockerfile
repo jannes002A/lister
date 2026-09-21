@@ -52,11 +52,16 @@ RUN groupadd --gid 10001 lister \
  && useradd --uid 10001 --gid 10001 --no-create-home \
             --home-dir /app --shell /usr/sbin/nologin lister
 
+# LISTER_ENV=production makes the app strict by default: it refuses to start
+# without LISTER_SECRET_KEY and will not run Flask's debug server. compose
+# supplies the key from .env.
 ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONFAULTHANDLER=1 \
-    LISTER_DB_PATH=/data/shopping.db
+    LISTER_DB_PATH=/data/shopping.db \
+    PORT=9000 \
+    LISTER_ENV=production
 
 WORKDIR /app
 
@@ -72,12 +77,12 @@ RUN install -d -o 10001 -g 10001 -m 0700 /data
 
 USER 10001:10001
 
-EXPOSE 8000
+EXPOSE 9000
 
 # Exercises a route that actually touches SQLite, so a container with a broken
 # or unwritable database reports unhealthy instead of merely accepting sockets.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD ["python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/', timeout=4).status == 200 else 1)"]
+    CMD ["python", "-c", "import os,urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:' + os.environ.get('PORT', '9000') + '/', timeout=4).status == 200 else 1)"]
 
 ENTRYPOINT ["gunicorn"]
 CMD ["-c", "/app/gunicorn.conf.py", "src.app:app"]

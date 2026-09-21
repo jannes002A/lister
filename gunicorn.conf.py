@@ -8,7 +8,9 @@ execution interface for anyone who can reach the port.
 
 import os
 
-bind = f"0.0.0.0:{os.environ.get('PORT', '8000')}"
+# Binds inside the container only; compose publishes it on 127.0.0.1 of the
+# host, so "0.0.0.0" here is the container's own network namespace.
+bind = f"0.0.0.0:{os.environ.get('PORT', '9000')}"
 
 # One worker process, several threads.
 #

@@ -19,19 +19,33 @@ uv run pytest    # 145 tests
 
 ## Deploy it with Docker
 
+Settings and secrets come from a `.env` file that never enters the image or the
+repository. Create it once:
+
+```bash
+cp .env.example .env
+python -c 'import secrets; print(secrets.token_hex(32))'   # paste into LISTER_SECRET_KEY
+chmod 600 .env
+```
+
 ```bash
 docker compose up -d --build
 ```
 
-Then open http://127.0.0.1:8000. State lives in the `lister-data` volume and
+Then open http://127.0.0.1:9000. State lives in the `lister-data` volume and
 survives rebuilds; `docker compose down` stops the app without touching it
 (`down -v` deletes the data).
+
+`LISTER_SECRET_KEY` is required: with `LISTER_ENV=production` (which the image
+sets) the app refuses to boot without one rather than falling back to a default
+that would be identical on every deployment. Compose likewise refuses to start
+if `.env` is missing.
 
 ### Read this before you expose it
 
 **The app has no authentication and no CSRF tokens.** Any page that can reach
 your browser can make it POST to `/build` or `/selected` and, for example, clear
-your list. That is why compose publishes the port as `127.0.0.1:8000:8000` —
+your list. That is why compose publishes the port as `127.0.0.1:9000:9000` —
 reachable from this host only. Dropping the `127.0.0.1:` prefix puts the app on
 your whole network, and because Docker writes its own iptables rules, a host
 firewall will *not* hold it back.
@@ -45,7 +59,10 @@ gunicorn trusts its forwarding headers — never `*`, which lets any client forg
 
 | Measure | Why |
 | --- | --- |
-| gunicorn, never `app.run(debug=True)` | the Werkzeug debugger is a remote code execution console for anyone who can reach the port |
+| gunicorn, and debug mode off by default | the Werkzeug debugger is a remote code execution console for anyone who can reach the port; `LISTER_DEBUG` only works outside `LISTER_ENV=production` |
+| secrets from `.env`, injected at run time | no key in a layer, in `docker history` or in git; a missing key fails the boot |
+| `Content-Security-Policy`, `nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy` | limits what an injected script could load or reach, and keeps the app out of other sites' frames |
+| `MAX_CONTENT_LENGTH` (256 KiB) | a request body cannot make the process allocate unbounded memory |
 | non-root `uid 10001`, `cap_drop: ALL` | the process holds an empty capability set — verified via `/proc/1/status` |
 | `no-new-privileges` | a setuid binary cannot be used to climb back up |
 | `read_only: true` rootfs | code, `/etc` and `/usr` cannot be rewritten at runtime |
@@ -61,8 +78,14 @@ gunicorn trusts its forwarding headers — never `*`, which lets any client forg
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
+| `LISTER_SECRET_KEY` | *(none — required in production)* | Flask session signing key; 64 hex chars from a CSPRNG |
+| `LISTER_ENV` | `development` (`production` in the image) | `production` requires the secret key, forbids the debug server and marks cookies `Secure` |
+| `LISTER_DEBUG` | `false` | dev server only; refused when `LISTER_ENV=production` |
 | `LISTER_DB_PATH` | `src/shopping.db` (dev), `/data/shopping.db` (container) | SQLite file location |
-| `PORT` | `8000` | port gunicorn binds |
+| `LISTER_PORT` | `9000` | host port compose publishes on `127.0.0.1` |
+| `PORT` | `9000` in the container, `5000` for the dev server | port the app binds |
+| `LISTER_SESSION_COOKIE_SECURE` | on when `LISTER_ENV=production` | send session cookies over HTTPS only |
+| `LISTER_MAX_CONTENT_LENGTH` | `262144` | largest accepted request body, in bytes |
 | `LISTER_THREADS` | `4` | threads in the single worker |
 | `LISTER_FORWARDED_ALLOW_IPS` | *(empty — trust no proxy)* | proxies whose forwarding headers are trusted |
 | `LISTER_LOG_LEVEL` | `info` | gunicorn log level |
@@ -118,6 +141,7 @@ Dockerfile                   Multi-stage build; hardened runtime image
 compose.yaml                 Deployment: rootfs read-only, no caps, loopback-only port
 gunicorn.conf.py             Production WSGI server settings
 .dockerignore                Deny-by-default allowlist of what the build may see
+.env.example                 Template for .env (the real .env is gitignored)
 src/app.py                   Flask routes, SQLite schema, amount parsing & merging
 src/templates/               Jinja2 templates (one per page, plus base.html)
 src/static/style.css         Styling

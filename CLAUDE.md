@@ -14,7 +14,8 @@ uv run pytest -k "combine"   # by name
 ```
 
 ```bash
-docker compose up -d --build   # deploy on http://127.0.0.1:8000
+cp .env.example .env           # then fill in LISTER_SECRET_KEY (required)
+docker compose up -d --build   # deploy on http://127.0.0.1:9000
 docker compose logs -f         # follow gunicorn's output
 ```
 
@@ -42,10 +43,19 @@ this were ever published.
 ## Deployment
 
 `Dockerfile` + `compose.yaml` run the app under gunicorn (`gunicorn.conf.py`), never
-Flask's dev server — `app.run(debug=True)` in `main()` is for local work only, since the
-Werkzeug debugger is a remote code execution console.
+Flask's dev server. `main()` is local-only and its debug mode is off unless
+`LISTER_DEBUG` is set — and it refuses to turn on at all under `LISTER_ENV=production`,
+since the Werkzeug debugger is a remote code execution console.
 
-Two constraints the container puts on the code:
+Configuration and secrets come from the environment, which compose fills from `.env`
+(gitignored; `.env.example` is the template, and `env_file: required: true` makes a
+missing file a hard error). The image sets `LISTER_ENV=production`, under which
+`src/app.py` raises at import if `LISTER_SECRET_KEY` is unset — deliberately no default
+key. Outside production a random per-start key is generated, which is why the tests need
+no environment at all. New settings follow the same rule: read from the environment,
+document in `.env.example`, never a committed default for anything secret.
+
+Three constraints the container puts on the code:
 
 - **The code directory is read-only at runtime.** Nothing may write next to the package.
   `DB_PATH` therefore honours `LISTER_DB_PATH`, which compose points at `/data` on a
@@ -53,10 +63,13 @@ Two constraints the container puts on the code:
 - **One gunicorn worker, several threads.** Multiple *processes* writing the one SQLite
   file contend for a whole-file lock and fail with "database is locked". Don't raise
   `workers` in `gunicorn.conf.py`.
+- **The app listens on 9000.** `PORT` defaults to 9000 in `gunicorn.conf.py`, the image
+  and compose; the host side is `127.0.0.1:${LISTER_PORT:-9000}`. Changing the port means
+  changing all of those together, including both healthchecks.
 
 `.dockerignore` is a deny-by-default allowlist: a new file the build genuinely needs has
-to be added there explicitly, which is what keeps `src/shopping.db` and stray secrets out
-of the image.
+to be added there explicitly, which is what keeps `src/shopping.db`, `.env` and stray
+secrets out of the image.
 
 ## Architecture
 

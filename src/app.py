@@ -1,5 +1,6 @@
 import os
 import re
+import secrets
 import sqlite3
 from pathlib import Path
 
@@ -11,6 +12,77 @@ from flask import Flask, g, redirect, render_template, request, url_for
 DB_PATH = Path(os.environ.get("LISTER_DB_PATH") or Path(__file__).parent / "shopping.db")
 
 app = Flask(__name__)
+
+
+# ------------------------------------------------------------ configuration
+#
+# Every knob below comes from the environment. In the container, compose feeds
+# that environment from `.env` (see `.env.example`); nothing secret is written
+# down in the repository, and there is deliberately no fallback default for the
+# secret key in production.
+
+
+def _env_flag(name, default=False):
+    """Read a boolean-ish environment variable."""
+    value = os.environ.get(name)
+    if value is None or not value.strip():
+        return default
+    return value.strip().lower() in ("1", "true", "yes", "on")
+
+
+# "production" switches the strict checks on. Anything else (the default) is
+# treated as a developer workstation.
+ENV = os.environ.get("LISTER_ENV", "development").strip().lower()
+
+SECRET_KEY = os.environ.get("LISTER_SECRET_KEY", "").strip()
+if not SECRET_KEY:
+    if ENV == "production":
+        raise RuntimeError(
+            "LISTER_SECRET_KEY is unset. Generate one with\n"
+            "    python -c 'import secrets; print(secrets.token_hex(32))'\n"
+            "and put it in .env, which compose passes in via env_file."
+        )
+    # Dev and tests get a fresh random key per start. Sessions therefore do not
+    # survive a restart, which is a better trade than shipping a known default
+    # that someone eventually deploys.
+    SECRET_KEY = secrets.token_hex(32)
+
+app.config.update(
+    SECRET_KEY=SECRET_KEY,
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE="Lax",
+    # A Secure cookie is never sent over plain http, so this has to be opt-out
+    # for anyone terminating TLS somewhere other than in front of this app.
+    SESSION_COOKIE_SECURE=_env_flag("LISTER_SESSION_COOKIE_SECURE", ENV == "production"),
+    # These are small forms. A larger body is either a mistake or an attempt to
+    # make the process allocate memory on a stranger's behalf.
+    MAX_CONTENT_LENGTH=int(os.environ.get("LISTER_MAX_CONTENT_LENGTH", 256 * 1024)),
+)
+
+# Sent on every response. `script-src` still needs 'unsafe-inline' because two
+# templates carry inline <script> blocks and onclick attributes; the rest of the
+# policy is what limits where a successful injection could send anything.
+CSP = (
+    "default-src 'self'; "
+    "script-src 'self' 'unsafe-inline'; "
+    "style-src 'self'; "
+    "img-src 'self' data:; "
+    "connect-src 'self'; "
+    "form-action 'self'; "
+    "base-uri 'none'; "
+    "frame-ancestors 'none'; "
+    "object-src 'none'"
+)
+
+
+@app.after_request
+def set_security_headers(response):
+    response.headers.setdefault("Content-Security-Policy", CSP)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Referrer-Policy", "no-referrer")
+    return response
+
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS recipes (
@@ -275,8 +347,24 @@ init_db()
 
 
 def main():
-    """Entry point for the ``shopping`` console script and ``main.py``."""
-    app.run(debug=True)
+    """Entry point for the ``shopping`` console script and ``main.py``.
+
+    This is Flask's development server: single-threaded and not hardened. The
+    deployed app runs under gunicorn instead (see the Dockerfile). Debug mode is
+    off unless LISTER_DEBUG is set, because the Werkzeug debugger it enables is
+    a remote code execution console for anyone who can reach the port.
+    """
+    debug = _env_flag("LISTER_DEBUG")
+    if debug and ENV == "production":
+        raise RuntimeError(
+            "Refusing to start the debug server with LISTER_ENV=production: the "
+            "Werkzeug debugger is a remote code execution console."
+        )
+    app.run(
+        host=os.environ.get("LISTER_HOST", "127.0.0.1"),
+        port=int(os.environ.get("PORT", "5000")),
+        debug=debug,
+    )
 
 
 if __name__ == "__main__":

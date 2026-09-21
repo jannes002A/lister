@@ -8,6 +8,12 @@
 !src/
 !gunicorn.conf.py
 
+# Secrets are never baked into a layer: compose reads .env on the host and
+# injects it at run time. The leading `*` already covers this; it is spelled
+# out so that nobody "fixes" a build by allowlisting it.
+.env
+.env.*
+
 # ...and re-exclude anything unwanted that the src/ rule just pulled back in.
 src/**/__pycache__/
 src/**/*.py[co]
